@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Key Stock Manager</title>
+    <style>
+        /* CSS - डिजाइन के लिए */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #fdf8f5;
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container { width: 100%; max-width: 450px; }
+
+        /* नया की डालने वाला टेक्स्ट बॉक्स */
+        .key-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            background-color: #fff;
+            font-size: 15px;
+            margin-bottom: 15px;
+            outline: none;
+            box-sizing: border-box;
+        }
+        .key-input:focus { border-color: #4a2c3a; }
+
+        /* Add Key to Stock बटन */
+        .add-btn {
+            background-color: #4a2c3a;
+            color: white;
+            border: none;
+            padding: 15px;
+            width: 100%;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            box-sizing: border-box;
+            transition: 0.2s;
+        }
+        .add-btn:hover { background-color: #3a212c; }
+
+        /* Available टेक्स्ट */
+        .available-text {
+            color: #2e7d32;
+            font-size: 15px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* हर की वाला कार्ड */
+        .key-card {
+            background-color: #fdf8f5;
+            border: 1px solid #e0d5c8;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+        }
+
+        .key-info {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-width: 55%;
+            word-break: break-all;
+        }
+
+        .key-text {
+            font-size: 14px;
+            color: #1a1a1a;
+            font-weight: 500;
+            word-wrap: break-word;
+        }
+
+        .time-info {
+            font-size: 13px;
+            color: #2e7d32;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-weight: 700;
+            font-family: monospace;
+        }
+        .time-info.expired { color: #d32f2f; }
+
+        .btn-group { display: flex; gap: 5px; }
+
+        /* कॉपी बटन */
+        .copy-btn {
+            background-color: #388e3c;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .copy-btn:hover { background-color: #2e7d32; }
+
+        /* डिलीट बटन */
+        .del-btn {
+            background-color: #d32f2f;
+            color: white;
+            border: none;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .del-btn:hover { background-color: #b71c1c; }
+
+        /* 🟢 टोस्ट (Toast) */
+        #toast {
+            visibility: hidden;
+            min-width: 200px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 10px;
+            padding: 14px;
+            position: fixed;
+            z-index: 1;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            font-size: 15px;
+            font-weight: 500;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            opacity: 0;
+            transition: opacity 0.3s, bottom 0.3s;
+        }
+        #toast.show { visibility: visible; opacity: 1; bottom: 50px; }
+
+        /* 📁 Used Keys फोल्डर */
+        .used-folder {
+            width: 100%;
+            margin-top: 25px;
+            border: 1px solid #e0d5c8;
+            border-radius: 12px;
+            background-color: #fff;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        .folder-header {
+            background-color: #f0e6dc;
+            padding: 15px;
+            font-size: 15px;
+            font-weight: bold;
+            color: #4a2c3a;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+        }
+        .folder-header:hover { background-color: #e6d9cc; }
+        .folder-content {
+            display: none;
+            padding: 15px;
+            border-top: 1px solid #e0d5c8;
+            background-color: #fdf8f5;
+        }
+        .folder-content.open { display: block; }
+        .empty-msg { text-align: center; color: #888; font-size: 14px; padding: 10px; }
+
+    </style>
+</head>
+<body>
+
+<div class="container" id="mainApp">
+    <!-- नया की डालने का टेक्स्ट बॉक्स -->
+    <input type="text" id="newKeyInput" class="key-input" placeholder="🔑 यहाँ नया कोड (Key) डालें...">
+
+    <!-- Add Key बटन -->
+    <button class="add-btn" onclick="addNewKey()">➕ Add Key to Stock</button>
+
+    <!-- Available काउंट -->
+    <div class="available-text">✅ Available: <span id="totalKeys">0</span></div>
+
+    <!-- Keys की मेन लिस्ट -->
+    <div id="keyList"></div>
+
+    <!-- Used Keys फोल्डर -->
+    <div class="used-folder">
+        <div class="folder-header" onclick="toggleUsedFolder()">
+            <span>📁 Used Keys</span>
+            <span id="usedCount" style="background:#4a2c3a; color:white; padding:2px 10px; border-radius:20px; font-size:12px;">0</span>
+        </div>
+        <div class="folder-content" id="usedFolderContent"></div>
+    </div>
+</div>
+
+<!-- 🟢 टोस्ट -->
+<div id="toast">Copied</div>
+
+<!-- 🔥 FIREBASE SDK (यह जरूरी है) -->
+<script type="module">
+    // Firebase SDK इम्पोर्ट करें
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, set, push, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    // 🔑 आपका Firebase Config
+    const firebaseConfig = {
+        apiKey: "AIzaSyD4jmyeOQPpz6SUv-m6r2jPCvmNvfiwVi0",
+        authDomain: "keystock-32cae.firebaseapp.com",
+        databaseURL: "https://keystock-32cae-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "keystock-32cae",
+        storageBucket: "keystock-32cae.firebasestorage.app",
+        messagingSenderId: "1088580155401",
+        appId: "1:1088580155401:web:cc03e367c1c427a76160d8"
+    };
+
+    // Firebase Initialize करें
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // ================== डेटा लोड करें (Realtime) ==================
+    let availableKeys = [];
+    let usedKeys = [];
+
+    const availableRef = ref(db, 'available');
+    const usedRef = ref(db, 'used');
+
+    // Available Keys को लाइव सुनें
+    onValue(availableRef, (snapshot) => {
+        availableKeys = [];
+        snapshot.forEach((child) => {
+            availableKeys.push({ id: child.key, ...child.val() });
+        });
+        availableKeys.reverse(); // नई सबसे ऊपर
+        renderAvailableKeys();
+    });
+
+    // Used Keys को लाइव सुनें
+    onValue(usedRef, (snapshot) => {
+        usedKeys = [];
+        snapshot.forEach((child) => {
+            usedKeys.push({ id: child.key, ...child.val() });
+        });
+        usedKeys.reverse();
+        renderUsedKeys();
+        updateAllTimers();
+    });
+
+    // ================== रेंडर फंक्शन्स ==================
+    const keyListContainer = document.getElementById('keyList');
+    const totalKeysSpan = document.getElementById('totalKeys');
+    const newKeyInput = document.getElementById('newKeyInput');
+    const toast = document.getElementById('toast');
+    const usedFolderContent = document.getElementById('usedFolderContent');
+    const usedCount = document.getElementById('usedCount');
+
+    function renderAvailableKeys() {
+        keyListContainer.innerHTML = '';
+        totalKeysSpan.innerText = availableKeys.length;
+
+        if (availableKeys.length === 0) {
+            keyListContainer.innerHTML = '<p style="text-align:center; color:#666; padding:10px;">कोई Key उपलब्ध नहीं है।</p>';
+            return;
+        }
+
+        availableKeys.forEach((item) => {
+            const card = document.createElement('div');
+            card.className = 'key-card';
+
+            card.innerHTML = `
+                <div class="key-info">
+                    <div class="key-text">${item.key}</div>
+                    <div class="time-info">🕒 ${item.duration}</div>
+                </div>
+                <div class="btn-group">
+                    <button class="copy-btn" onclick="copyAndMoveKey('${item.id}')">Copy</button>
+                    <button class="del-btn" onclick="deleteAvailableKey('${item.id}')">Del</button>
+                </div>
+            `;
+            keyListContainer.appendChild(card);
+        });
+    }
+
+    function renderUsedKeys() {
+        usedFolderContent.innerHTML = '';
+        usedCount.innerText = usedKeys.length;
+
+        if (usedKeys.length === 0) {
+            usedFolderContent.innerHTML = '<div class="empty-msg">अभी तक कोई Key इस्तेमाल नहीं हुई है।</div>';
+            return;
+        }
+
+        usedKeys.forEach((item) => {
+            const card = document.createElement('div');
+            card.className = 'key-card';
+
+            card.innerHTML = `
+                <div class="key-info">
+                    <div class="key-text">${item.key}</div>
+                    <div class="time-info" id="timer-${item.id}">🕒 --:--:--</div>
+                </div>
+                <div class="btn-group">
+                    <button class="copy-btn" onclick="justCopy('${item.key}')">Copy</button>
+                    <button class="del-btn" onclick="deleteUsedKey('${item.id}')">Del</button>
+                </div>
+            `;
+            usedFolderContent.appendChild(card);
+        });
+    }
+
+    // ================== नई Key जोड़ें ==================
+    window.addNewKey = function() {
+        let newKey = newKeyInput.value.trim();
+        if (newKey === "") {
+            showToast("⚠️ पहले कोड डालें!");
+            return;
+        }
+
+        const newKeyRef = push(availableRef);
+        set(newKeyRef, {
+            key: newKey,
+            duration: "12 Hours",
+            copied_at: null
+        });
+
+        newKeyInput.value = "";
+        showToast("✅ Key जोड़ दी गई!");
+    }
+
+    // ================== Available से Delete ==================
+    window.deleteAvailableKey = function(id) {
+        remove(ref(db, 'available/' + id));
+        showToast("🗑️ Key हटा दी गई!");
+    }
+
+    // ================== Used से Delete ==================
+    window.deleteUsedKey = function(id) {
+        remove(ref(db, 'used/' + id));
+        showToast("🗑️ Key हटा दी गई!");
+    }
+
+    // ================== Copy + Move to Used ==================
+    window.copyAndMoveKey = async function(id) {
+        // पहले Available से वह Key ढूंढें
+        let item = availableKeys.find(k => k.id === id);
+        if (!item) return;
+
+        // कॉपी करें
+        await navigator.clipboard.writeText(item.key);
+
+        // Used में डालें
+        const usedItemRef = push(usedRef);
+        await set(usedItemRef, {
+            key: item.key,
+            duration: item.duration,
+            copied_at: Date.now()
+        });
+
+        // Available से हटाएं
+        await remove(ref(db, 'available/' + id));
+
+        showToast("📋 Copied! 12 घंटे का टाइमर शुरू!");
+    }
+
+    // ================== सिर्फ Copy (Used Keys) ==================
+    window.justCopy = function(keyText) {
+        navigator.clipboard.writeText(keyText).then(() => {
+            showToast("📋 Copied!");
+        });
+    }
+
+    // ================== टाइमर सिस्टम ==================
+    const TIMER_DURATION = 12 * 60 * 60 * 1000; // 12 घंटे
+
+    function startAllTimers() {
+        setInterval(() => updateAllTimers(), 1000);
+    }
+
+    function updateAllTimers() {
+        usedKeys.forEach(item => {
+            let timerEl = document.getElementById('timer-' + item.id);
+            if (!timerEl || !item.copied_at) return;
+
+            let remaining = TIMER_DURATION - (Date.now() - parseInt(item.copied_at));
+
+            if (remaining <= 0) {
+                timerEl.innerText = "🕒 00:00:00 (Expired)";
+                timerEl.classList.add('expired');
+            } else {
+                let h = Math.floor(remaining / (1000 * 60 * 60));
+                let m = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+                let s = Math.floor((remaining % (1000 * 60)) / 1000);
+                timerEl.innerText = "🕒 " + 
+                    String(h).padStart(2, '0') + ':' + 
+                    String(m).padStart(2, '0') + ':' + 
+                    String(s).padStart(2, '0');
+            }
+        });
+    }
+
+    // ================== टोस्ट ==================
+    function showToast(message) {
+        toast.innerText = message;
+        toast.className = "show";
+        setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 2000);
+    }
+
+    window.toggleUsedFolder = function() {
+        document.getElementById('usedFolderContent').classList.toggle('open');
+    }
+
+    // टाइमर शुरू करें
+    startAllTimers();
+
+</script>
+
+</body>
+</html>

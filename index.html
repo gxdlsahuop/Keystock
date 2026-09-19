@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Key Stock Manager</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #fdf8f5;
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container { width: 100%; max-width: 450px; }
+
+        .available-text {
+            color: #2e7d32;
+            font-size: 15px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .key-card {
+            background-color: #fdf8f5;
+            border: 1px solid #e0d5c8;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+        }
+
+        .key-info {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-width: 60%;
+            word-break: break-all;
+        }
+
+        .key-text {
+            font-size: 14px;
+            color: #1a1a1a;
+            font-weight: 500;
+            word-wrap: break-word;
+        }
+
+        .time-info {
+            font-size: 13px;
+            color: #2e7d32;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-weight: 700;
+            font-family: monospace;
+        }
+        .time-info.expired { color: #d32f2f; }
+
+        .btn-group { display: flex; gap: 5px; }
+
+        .copy-btn {
+            background-color: #388e3c;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .copy-btn:hover { background-color: #2e7d32; }
+
+        .recover-btn {
+            background-color: #f57c00;
+            color: white;
+            border: none;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .recover-btn:hover { background-color: #e65100; }
+
+        #toast {
+            visibility: hidden;
+            min-width: 200px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 10px;
+            padding: 14px;
+            position: fixed;
+            z-index: 1;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            font-size: 15px;
+            font-weight: 500;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            opacity: 0;
+            transition: opacity 0.3s, bottom 0.3s;
+        }
+        #toast.show { visibility: visible; opacity: 1; bottom: 50px; }
+
+        .used-folder {
+            width: 100%;
+            margin-top: 25px;
+            border: 1px solid #e0d5c8;
+            border-radius: 12px;
+            background-color: #fff;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        .folder-header {
+            background-color: #f0e6dc;
+            padding: 15px;
+            font-size: 15px;
+            font-weight: bold;
+            color: #4a2c3a;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+        }
+        .folder-header:hover { background-color: #e6d9cc; }
+
+        .folder-content {
+            display: none;
+            padding: 15px;
+            border-top: 1px solid #e0d5c8;
+            background-color: #fdf8f5;
+        }
+        .folder-content.open { display: block; }
+        .empty-msg { text-align: center; color: #888; font-size: 14px; padding: 10px; }
+
+    </style>
+</head>
+<body>
+
+<div class="container" id="mainApp">
+    <!-- ❌ Input box aur Add button hata diya -->
+
+    <div class="available-text">✅ Available: <span id="totalKeys">0</span></div>
+    <div id="keyList"></div>
+
+    <!-- 📁 Used Keys -->
+    <div class="used-folder">
+        <div class="folder-header" onclick="toggleUsedFolder()">
+            <span>📁 Used Keys</span>
+            <span id="usedCount" style="background:#4a2c3a; color:white; padding:2px 10px; border-radius:20px; font-size:12px;">0</span>
+        </div>
+        <div class="folder-content" id="usedFolderContent"></div>
+    </div>
+</div>
+
+<div id="toast">Copied</div>
+
+<!-- 🔥 FIREBASE SDK -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, set, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyD4jmyeOQPpz6SUv-m6r2jPCvmNvfiwVi0",
+        authDomain: "keystock-32cae.firebaseapp.com",
+        databaseURL: "https://keystock-32cae-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "keystock-32cae",
+        storageBucket: "keystock-32cae.firebasestorage.app",
+        messagingSenderId: "1088580155401",
+        appId: "1:1088580155401:web:cc03e367c1c427a76160d8"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    let availableKeys = [];
+    let usedKeys = [];
+
+    const availableRef = ref(db, 'available');
+    const usedRef = ref(db, 'used');
+
+    onValue(availableRef, (snapshot) => {
+        availableKeys = [];
+        snapshot.forEach((child) => {
+            availableKeys.push({ id: child.key, ...child.val() });
+        });
+        // 🔤 Ascending order (A-Z)
+        availableKeys.sort((a, b) => a.key.localeCompare(b.key));
+        renderAvailableKeys();
+    });
+
+    onValue(usedRef, (snapshot) => {
+        usedKeys = [];
+        snapshot.forEach((child) => {
+            usedKeys.push({ id: child.key, ...child.val() });
+        });
+        // 🔤 Ascending order (A-Z)
+        usedKeys.sort((a, b) => a.key.localeCompare(b.key));
+        renderUsedKeys();
+        updateAllTimers();
+    });
+
+    const keyListContainer = document.getElementById('keyList');
+    const totalKeysSpan = document.getElementById('totalKeys');
+    const toast = document.getElementById('toast');
+    const usedFolderContent = document.getElementById('usedFolderContent');
+    const usedCount = document.getElementById('usedCount');
+
+    // ✅ Available Keys — sirf Copy button
+    function renderAvailableKeys() {
+        keyListContainer.innerHTML = '';
+        totalKeysSpan.innerText = availableKeys.length;
+
+        if (availableKeys.length === 0) {
+            keyListContainer.innerHTML = '<p style="text-align:center; color:#666; padding:10px;">कोई Key उपलब्ध नहीं है।</p>';
+            return;
+        }
+
+        availableKeys.forEach((item) => {
+            const card = document.createElement('div');
+            card.className = 'key-card';
+            card.innerHTML = `
+                <div class="key-info">
+                    <div class="key-text">${item.key}</div>
+                </div>
+                <div class="btn-group">
+                    <button class="copy-btn" onclick="copyAndMoveKey('${item.id}')">Copy</button>
+                </div>
+            `;
+            keyListContainer.appendChild(card);
+        });
+    }
+
+    // 📁 Used Keys — Copy + Recover + timer
+    function renderUsedKeys() {
+        usedFolderContent.innerHTML = '';
+        usedCount.innerText = usedKeys.length;
+
+        if (usedKeys.length === 0) {
+            usedFolderContent.innerHTML = '<div class="empty-msg">अभी तक कोई Key इस्तेमाल नहीं हुई है।</div>';
+            return;
+        }
+
+        usedKeys.forEach((item) => {
+            const card = document.createElement('div');
+            card.className = 'key-card';
+            card.innerHTML = `
+                <div class="key-info">
+                    <div class="key-text">${item.key}</div>
+                    <div class="time-info" id="timer-${item.id}">🕒 --:--:--</div>
+                </div>
+                <div class="btn-group">
+                    <button class="copy-btn" onclick="justCopy('${item.key}')">Copy</button>
+                    <button class="recover-btn" onclick="recoverToAvailable('${item.id}')">Recover</button>
+                </div>
+            `;
+            usedFolderContent.appendChild(card);
+        });
+    }
+
+    // ================== ♻️ USED → AVAILABLE ==================
+    window.recoverToAvailable = function(id) {
+        let item = usedKeys.find(k => k.id === id);
+        if (!item) return;
+
+        const availRef = push(availableRef);
+        set(availRef, {
+            key: item.key,
+            duration: "12 Hours",
+            copied_at: null
+        });
+
+        remove(ref(db, 'used/' + id));
+        showToast("♻️ Key वापस Available में आ गई!");
+    }
+
+    // ================== COPY LOGIC ==================
+    // Available se Copy → Used me jaye (timer ke saath)
+    window.copyAndMoveKey = async function(id) {
+        let item = availableKeys.find(k => k.id === id);
+        if (!item) return;
+
+        await navigator.clipboard.writeText(item.key);
+
+        const usedItemRef = push(usedRef);
+        await set(usedItemRef, {
+            key: item.key,
+            duration: item.duration,
+            copied_at: Date.now()
+        });
+
+        await remove(ref(db, 'available/' + id));
+        showToast("📋 Copied! 12 घंटे का टाइमर शुरू!");
+    }
+
+    // Used me Copy → sirf copy
+    window.justCopy = function(keyText) {
+        navigator.clipboard.writeText(keyText).then(() => {
+            showToast("📋 Copied!");
+        });
+    }
+
+    // ================== TIMER LOGIC ==================
+    const TIMER_DURATION = 12 * 60 * 60 * 1000;
+
+    function startAllTimers() {
+        setInterval(() => updateAllTimers(), 1000);
+    }
+
+    function updateAllTimers() {
+        usedKeys.forEach(item => {
+            let timerEl = document.getElementById('timer-' + item.id);
+            if (!timerEl || !item.copied_at) return;
+
+            let remaining = TIMER_DURATION - (Date.now() - parseInt(item.copied_at));
+
+            if (remaining <= 0) {
+                timerEl.innerText = "🕒 00:00:00 (Expired)";
+                timerEl.classList.add('expired');
+            } else {
+                let h = Math.floor(remaining / (1000 * 60 * 60));
+                let m = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+                let s = Math.floor((remaining % (1000 * 60)) / 1000);
+                timerEl.innerText = "🕒 " +
+                    String(h).padStart(2, '0') + ':' +
+                    String(m).padStart(2, '0') + ':' +
+                    String(s).padStart(2, '0');
+            }
+        });
+    }
+
+    function showToast(message) {
+        toast.innerText = message;
+        toast.className = "show";
+        setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 2500);
+    }
+
+    window.toggleUsedFolder = function() {
+        document.getElementById('usedFolderContent').classList.toggle('open');
+    }
+
+    startAllTimers();
+
+</script>
+
+</body>
+</html>
